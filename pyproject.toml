@@ -1,0 +1,10 @@
+[project]
+name = "pbip-model-migrator"
+version = "0.1.0"
+description = "Refactor Power BI PBIP semantic models by remapping tables and columns across reports."
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
