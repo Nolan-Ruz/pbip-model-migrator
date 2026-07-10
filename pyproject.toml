@@ -5,6 +5,9 @@ description = "Refactor Power BI PBIP semantic models by remapping tables and co
 requires-python = ">=3.10"
 dependencies = []
 
+[project.scripts]
+pbip-migrator-gui = "pbip_model_migrator.gui.app:main"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
