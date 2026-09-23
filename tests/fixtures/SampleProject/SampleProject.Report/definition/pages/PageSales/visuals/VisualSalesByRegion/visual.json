@@ -1,0 +1,71 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "VisualSalesByRegion",
+  "position": {
+    "x": 620,
+    "y": 0,
+    "z": 0,
+    "width": 600,
+    "height": 320
+  },
+  "visual": {
+    "visualType": "clusteredBarChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Customer"
+                    }
+                  },
+                  "Property": "Region"
+                }
+              },
+              "queryRef": "Customer.Region",
+              "nativeQueryRef": "Region"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Sales"
+                    }
+                  },
+                  "Property": "West Region Sales"
+                }
+              },
+              "queryRef": "Sales.West Region Sales",
+              "nativeQueryRef": "West Region Sales"
+            }
+          ]
+        }
+      }
+    },
+    "filterConfig": {
+      "filters": [
+        {
+          "field": {
+            "Column": {
+              "Expression": {
+                "SourceRef": {
+                  "Entity": "Customer"
+                }
+              },
+              "Property": "Region"
+            }
+          },
+          "type": "Categorical"
+        }
+      ]
+    }
+  }
+}

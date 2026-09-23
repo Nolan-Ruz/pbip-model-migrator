@@ -1,0 +1,4 @@
+relationship a1b2c3d4-0003-4000-8000-000000000001
+	fromColumn: Sales.CustomerID
+	toColumn: Customer.CustomerID
+

@@ -1,201 +1,280 @@
-import json
-import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from __future__ import annotations
 
-from pbip_model_migrator.core.migration import MigrationEngine
-from pbip_model_migrator.gui.mapping_builder import build_mapping
-from pbip_model_migrator.operations.table_mapper import TableMapper
+import sys
+from pathlib import Path
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QFrame,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QMainWindow,
+    QPlainTextEdit,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
+
+from pbip_model_migrator.core.mapping import MappingError, load_mapping
+from pbip_model_migrator.core.project_io import (
+    ProjectLoadError,
+    UnsupportedFormatError,
+    validate_report_dir,
+    validate_semantic_model_dir,
+)
+from pbip_model_migrator.gui.theme import STYLE_SHEET
+from pbip_model_migrator.gui.widgets import PathPickerRow, StatCard, StepCard
+
+MAPPING_COLUMNS = ["object_type", "source_table", "source_name", "target_table", "target_name"]
 
 
-class MigratorApp(tk.Tk):
+class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.title("PBIP Model Migrator")
-        self.geometry("760x640")
+        self.setWindowTitle("PBIP Model Migrator")
+        self.resize(980, 840)
+        self.setMinimumWidth(760)
 
-        self.file_path_var = tk.StringVar()
+        self.mapping = None
 
-        self._build_file_section()
-        self._build_table_mapping_section()
-        self._build_column_mapping_section()
-        self._build_output_section()
-        self._build_run_section()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        self.setCentralWidget(scroll)
 
-    # -- layout -----------------------------------------------------------
+        page = QWidget()
+        scroll.setWidget(page)
 
-    def _build_file_section(self):
-        frame = ttk.LabelFrame(self, text="PBIP File")
-        frame.pack(fill="x", padx=10, pady=(10, 5))
+        root = QVBoxLayout(page)
+        root.setContentsMargins(32, 28, 32, 28)
+        root.setSpacing(18)
 
-        entry = ttk.Entry(frame, textvariable=self.file_path_var, state="readonly")
-        entry.pack(side="left", fill="x", expand=True, padx=(10, 5), pady=10)
+        root.addLayout(self._build_header())
+        self.report_card = self._build_report_card()
+        root.addWidget(self.report_card)
+        self.target_card = self._build_target_card()
+        root.addWidget(self.target_card)
+        self.mapping_card = self._build_mapping_card()
+        root.addWidget(self.mapping_card)
+        root.addLayout(self._build_action_row())
+        root.addWidget(self._build_results_panel())
+        root.addWidget(self._build_log_panel())
+        root.addStretch(1)
 
-        ttk.Button(frame, text="Browse...", command=self.browse_file).pack(
-            side="left", padx=(0, 10), pady=10
+        self.report_dir: Path | None = None
+        self.target_model_dir: Path | None = None
+
+    # -- header -------------------------------------------------------------
+
+    def _build_header(self):
+        layout = QVBoxLayout()
+        layout.setSpacing(2)
+        title = QLabel("PBIP Model Migrator")
+        title.setObjectName("pageTitle")
+        subtitle = QLabel(
+            "Remap tables and columns from a report onto a new semantic model, "
+            "and check every field resolves before you touch Power BI Desktop."
         )
+        subtitle.setObjectName("pageSubtitle")
+        subtitle.setWordWrap(True)
+        layout.addWidget(title)
+        layout.addWidget(subtitle)
+        return layout
 
-    def _build_table_mapping_section(self):
-        frame = ttk.LabelFrame(self, text="Table Mappings (old table -> new table)")
-        frame.pack(fill="both", expand=True, padx=10, pady=5)
+    # -- step 1: report -------------------------------------------------------
 
-        self.table_tree = ttk.Treeview(
-            frame, columns=("old", "new"), show="headings", height=5
+    def _build_report_card(self):
+        card = StepCard(1, "Source report", "The *.Report folder (PBIR) to migrate")
+        self.report_picker = PathPickerRow("No report folder selected", mode="dir")
+        self.report_picker.changed.connect(self._on_report_changed)
+        card.content.addWidget(self.report_picker)
+        return card
+
+    def _on_report_changed(self, path: Path):
+        try:
+            validate_report_dir(path)
+        except UnsupportedFormatError as exc:
+            self.report_dir = None
+            self.report_card.set_status("Unsupported format", "danger")
+            self._log(str(exc))
+        except ProjectLoadError as exc:
+            self.report_dir = None
+            self.report_card.set_status("Not a report folder", "danger")
+            self._log(str(exc))
+        else:
+            self.report_dir = path
+            self.report_card.set_status("PBIR detected", "success")
+            self._log(f"Report folder set: {path}")
+        self._refresh_actions()
+
+    # -- step 2: target model -------------------------------------------------
+
+    def _build_target_card(self):
+        card = StepCard(
+            2, "Target semantic model", "The *.SemanticModel folder (TMDL) to migrate onto"
         )
-        self.table_tree.heading("old", text="Old Table")
-        self.table_tree.heading("new", text="New Table")
-        self.table_tree.pack(fill="both", expand=True, padx=10, pady=(10, 5))
+        self.target_picker = PathPickerRow("No target model selected", mode="dir")
+        self.target_picker.changed.connect(self._on_target_changed)
+        card.content.addWidget(self.target_picker)
+        return card
 
-        entry_row = ttk.Frame(frame)
-        entry_row.pack(fill="x", padx=10, pady=(0, 10))
+    def _on_target_changed(self, path: Path):
+        try:
+            validate_semantic_model_dir(path)
+        except UnsupportedFormatError as exc:
+            self.target_model_dir = None
+            self.target_card.set_status("Unsupported format", "danger")
+            self._log(str(exc))
+        except ProjectLoadError as exc:
+            self.target_model_dir = None
+            self.target_card.set_status("Not a semantic model folder", "danger")
+            self._log(str(exc))
+        else:
+            self.target_model_dir = path
+            self.target_card.set_status("TMDL detected", "success")
+            self._log(f"Target model set: {path}")
+        self._refresh_actions()
 
-        self.table_old_entry = ttk.Entry(entry_row)
-        self.table_old_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
-        self.table_new_entry = ttk.Entry(entry_row)
-        self.table_new_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
+    # -- step 3: mapping ------------------------------------------------------
 
-        ttk.Button(entry_row, text="Add", command=self.add_table_mapping).pack(
-            side="left", padx=(0, 5)
+    def _build_mapping_card(self):
+        card = StepCard(
+            3, "Mapping file", "CSV: object_type, source_table, source_name, target_table, target_name"
         )
-        ttk.Button(
-            entry_row, text="Remove Selected", command=self.remove_table_mapping
-        ).pack(side="left")
-
-    def _build_column_mapping_section(self):
-        frame = ttk.LabelFrame(
-            self, text="Column Mappings (table / old column -> new column)"
+        self.mapping_picker = PathPickerRow(
+            "No mapping file selected", mode="file", file_filter="CSV files (*.csv)"
         )
-        frame.pack(fill="both", expand=True, padx=10, pady=5)
+        self.mapping_picker.changed.connect(self._on_mapping_changed)
+        card.content.addWidget(self.mapping_picker)
 
-        self.column_tree = ttk.Treeview(
-            frame, columns=("table", "old", "new"), show="headings", height=5
+        self.mapping_table = QTableWidget(0, len(MAPPING_COLUMNS))
+        self.mapping_table.setHorizontalHeaderLabels(MAPPING_COLUMNS)
+        self.mapping_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.mapping_table.verticalHeader().setVisible(False)
+        self.mapping_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.mapping_table.setSelectionMode(QTableWidget.NoSelection)
+        self.mapping_table.setMinimumHeight(160)
+        self.mapping_table.setMaximumHeight(220)
+        card.content.addWidget(self.mapping_table)
+        return card
+
+    def _on_mapping_changed(self, path: Path):
+        try:
+            self.mapping = load_mapping(path)
+        except MappingError as exc:
+            self.mapping = None
+            self.mapping_card.set_status("Invalid mapping file", "danger")
+            self._log(str(exc))
+            self.mapping_table.setRowCount(0)
+        else:
+            self.mapping_card.set_status(f"{len(self.mapping.rows)} rows loaded", "success")
+            self._log(f"Mapping file loaded: {path} ({len(self.mapping.rows)} rows)")
+            self._populate_mapping_table()
+        self._refresh_actions()
+
+    def _populate_mapping_table(self):
+        rows = self.mapping.rows if self.mapping else []
+        self.mapping_table.setRowCount(len(rows))
+        for row_idx, row in enumerate(rows):
+            values = [row.object_type, row.source_table, row.source_name, row.target_table, row.target_name]
+            for col_idx, value in enumerate(values):
+                item = QTableWidgetItem(value)
+                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                self.mapping_table.setItem(row_idx, col_idx, item)
+
+    # -- actions ----------------------------------------------------------------
+
+    def _build_action_row(self):
+        layout = QHBoxLayout()
+        layout.setSpacing(10)
+
+        self.in_place_checkbox = QCheckBox("Write in place (overwrite the report folder)")
+
+        self.dry_run_button = QPushButton("Run dry run")
+        self.dry_run_button.setObjectName("primaryButton")
+        self.dry_run_button.setCursor(Qt.PointingHandCursor)
+        self.dry_run_button.clicked.connect(self._run_dry_run)
+        self.dry_run_button.setEnabled(False)
+
+        self.apply_button = QPushButton("Apply migration")
+        self.apply_button.setObjectName("secondaryButton")
+        self.apply_button.setCursor(Qt.PointingHandCursor)
+        self.apply_button.setEnabled(False)
+
+        layout.addWidget(self.in_place_checkbox)
+        layout.addStretch(1)
+        layout.addWidget(self.dry_run_button)
+        layout.addWidget(self.apply_button)
+        return layout
+
+    def _refresh_actions(self):
+        ready = self.report_dir is not None and self.target_model_dir is not None and self.mapping is not None
+        self.dry_run_button.setEnabled(ready)
+
+    def _run_dry_run(self):
+        self._log("--- Dry run ---")
+        self._log(f"Report: {self.report_dir}")
+        self._log(f"Target model: {self.target_model_dir}")
+        self._log(f"Mapping rows: {len(self.mapping.rows)}")
+        self._log(
+            "Reference discovery/validation engine is not implemented yet - "
+            "this is a UI preview of the dry-run flow."
         )
-        self.column_tree.heading("table", text="Table")
-        self.column_tree.heading("old", text="Old Column")
-        self.column_tree.heading("new", text="New Column")
-        self.column_tree.pack(fill="both", expand=True, padx=10, pady=(10, 5))
+        self.resolved_stat.set_value(0, "neutral")
+        self.unmapped_stat.set_value(0, "neutral")
+        self.missing_stat.set_value(0, "neutral")
 
-        entry_row = ttk.Frame(frame)
-        entry_row.pack(fill="x", padx=10, pady=(0, 10))
+    # -- results panel ------------------------------------------------------
 
-        self.column_table_entry = ttk.Entry(entry_row)
-        self.column_table_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
-        self.column_old_entry = ttk.Entry(entry_row)
-        self.column_old_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
-        self.column_new_entry = ttk.Entry(entry_row)
-        self.column_new_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
+    def _build_results_panel(self):
+        card = StepCard(4, "Results", "Populated after a dry run")
+        stats_row = QHBoxLayout()
+        stats_row.setSpacing(10)
 
-        ttk.Button(entry_row, text="Add", command=self.add_column_mapping).pack(
-            side="left", padx=(0, 5)
-        )
-        ttk.Button(
-            entry_row, text="Remove Selected", command=self.remove_column_mapping
-        ).pack(side="left")
+        self.resolved_stat = StatCard("Resolved")
+        self.unmapped_stat = StatCard("Unmapped")
+        self.missing_stat = StatCard("Mapped but missing")
 
-    def _build_output_section(self):
-        frame = ttk.LabelFrame(self, text="Output")
-        frame.pack(fill="both", expand=True, padx=10, pady=5)
+        stats_row.addWidget(self.resolved_stat)
+        stats_row.addWidget(self.unmapped_stat)
+        stats_row.addWidget(self.missing_stat)
+        card.content.addLayout(stats_row)
+        return card
 
-        self.output_text = tk.Text(frame, height=10, state="disabled")
-        self.output_text.pack(fill="both", expand=True, padx=10, pady=10)
+    # -- log panel ------------------------------------------------------------
 
-    def _build_run_section(self):
-        frame = ttk.Frame(self)
-        frame.pack(fill="x", padx=10, pady=(0, 10))
+    def _build_log_panel(self):
+        frame = QFrame()
+        layout = QVBoxLayout(frame)
+        layout.setContentsMargins(0, 0, 0, 0)
 
-        ttk.Button(
-            frame, text="Run Migration (Test)", command=self.run_migration
-        ).pack(side="right")
+        self.log_view = QPlainTextEdit()
+        self.log_view.setObjectName("logPanel")
+        self.log_view.setReadOnly(True)
+        self.log_view.setFixedHeight(160)
+        self.log_view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        layout.addWidget(self.log_view)
+        return frame
 
-    # -- actions ------------------------------------------------------------
-
-    def browse_file(self):
-        path = filedialog.askopenfilename(
-            title="Select PBIP file",
-            filetypes=[("Power BI Project", "*.pbip"), ("All files", "*.*")],
-        )
-        if path:
-            self.file_path_var.set(path)
-            self.log(f"Selected PBIP file: {path}")
-
-    def add_table_mapping(self):
-        old = self.table_old_entry.get().strip()
-        new = self.table_new_entry.get().strip()
-        if not old or not new:
-            messagebox.showwarning(
-                "Missing value", "Both old and new table names are required."
-            )
-            return
-        self.table_tree.insert("", "end", values=(old, new))
-        self.table_old_entry.delete(0, "end")
-        self.table_new_entry.delete(0, "end")
-
-    def remove_table_mapping(self):
-        for item in self.table_tree.selection():
-            self.table_tree.delete(item)
-
-    def add_column_mapping(self):
-        table = self.column_table_entry.get().strip()
-        old = self.column_old_entry.get().strip()
-        new = self.column_new_entry.get().strip()
-        if not table or not old or not new:
-            messagebox.showwarning(
-                "Missing value",
-                "Table, old column, and new column are all required.",
-            )
-            return
-        self.column_tree.insert("", "end", values=(table, old, new))
-        self.column_table_entry.delete(0, "end")
-        self.column_old_entry.delete(0, "end")
-        self.column_new_entry.delete(0, "end")
-
-    def remove_column_mapping(self):
-        for item in self.column_tree.selection():
-            self.column_tree.delete(item)
-
-    def gather_table_rows(self):
-        return [
-            tuple(self.table_tree.item(item, "values"))
-            for item in self.table_tree.get_children()
-        ]
-
-    def gather_column_rows(self):
-        return [
-            tuple(self.column_tree.item(item, "values"))
-            for item in self.column_tree.get_children()
-        ]
-
-    def run_migration(self):
-        file_path = self.file_path_var.get().strip()
-        if not file_path:
-            messagebox.showwarning("No file selected", "Select a PBIP file first.")
-            return
-
-        mapping = build_mapping(self.gather_table_rows(), self.gather_column_rows())
-        project = {"path": file_path}
-
-        self.log("--- Run Migration (Test) ---")
-        self.log(f"Project: {json.dumps(project, indent=2)}")
-        self.log(f"Mapping: {json.dumps(mapping, indent=2)}")
-
-        engine = MigrationEngine(operations=[TableMapper()])
-        engine.run(project, mapping)
-
-        self.log(
-            "Migration engine run complete. Note: operations are stubs, so no "
-            "PBIP files were actually modified."
-        )
-
-    def log(self, message):
-        print(message)
-        self.output_text.configure(state="normal")
-        self.output_text.insert("end", message + "\n")
-        self.output_text.see("end")
-        self.output_text.configure(state="disabled")
+    def _log(self, message: str):
+        self.log_view.appendPlainText(message)
 
 
 def main():
-    app = MigratorApp()
-    app.mainloop()
+    app = QApplication(sys.argv)
+    app.setStyle("Fusion")
+    app.setStyleSheet(STYLE_SHEET)
+
+    window = MainWindow()
+    window.show()
+
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":
