@@ -40,9 +40,31 @@ table Sales
 		mode: import
 		source =
 				let
-					Source = Table.FromRows({}, {"OrderDate", "CustomerID", "Amount"})
+					Source = Table.FromRows(
+							{
+								{#datetime(2025, 1, 5, 0, 0, 0), 1, 1250.00},
+								{#datetime(2025, 1, 12, 0, 0, 0), 2, 875.50},
+								{#datetime(2025, 1, 18, 0, 0, 0), 3, 430.25},
+								{#datetime(2025, 2, 2, 0, 0, 0), 1, 2100.00},
+								{#datetime(2025, 2, 9, 0, 0, 0), 4, 560.75},
+								{#datetime(2025, 2, 15, 0, 0, 0), 5, 990.00},
+								{#datetime(2025, 3, 1, 0, 0, 0), 2, 1475.30},
+								{#datetime(2025, 3, 10, 0, 0, 0), 3, 725.00},
+								{#datetime(2025, 3, 18, 0, 0, 0), 4, 340.60},
+								{#datetime(2025, 3, 25, 0, 0, 0), 5, 1890.45}
+							},
+							{"OrderDate", "CustomerID", "Amount"}
+						),
+					ChangedType = Table.TransformColumnTypes(
+							Source,
+							{
+								{"OrderDate", type datetime},
+								{"CustomerID", Int64.Type},
+								{"Amount", type number}
+							}
+						)
 				in
-					Source
+					ChangedType
 
 	annotation PBI_ResultType = Table
 

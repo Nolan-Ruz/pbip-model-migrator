@@ -16,8 +16,8 @@ def test_discovers_every_reference_in_the_fixture():
     refs = discover_references_in_report(FIXTURE_REPORT)
 
     # 2 in VisualSalesByDate, 3 in VisualSalesByRegion (2 projections + 1
-    # filter), 2 in the bookmark (outer filter field + nested Where clause).
-    assert len(refs) == 7
+    # filter), 1 in the bookmark.
+    assert len(refs) == 6
 
 
 def test_discovers_column_projection_with_display_refs():
@@ -62,13 +62,12 @@ def test_discovers_visual_filter_without_display_refs():
     assert without_display[0].native_query_ref_path is None
 
 
-def test_discovers_both_bookmark_references():
+def test_discovers_bookmark_reference():
     refs = discover_references_in_report(FIXTURE_REPORT)
 
     matches = _find(refs, "Customer", "Region", "bookmark")
-    assert len(matches) == 2
-    for ref in matches:
-        assert ref.query_ref_path is None
+    assert len(matches) == 1
+    assert matches[0].query_ref_path is None
 
 
 def test_reference_paths_resolve_back_to_the_source_node():

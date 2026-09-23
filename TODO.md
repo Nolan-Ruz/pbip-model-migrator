@@ -10,13 +10,19 @@ they land so progress is easy to see at a glance.
       TMSL (`model.bim`); hard-stop with a clear message on legacy formats
 - [x] CSV mapping file loader with `table`/`column`/`measure` rows and
       field-row-overrides-table-row precedence (`core/mapping.py`)
-- [x] Synthetic fixture PBIP project for tests (2 tables, 1 relationship,
-      cross-table measures, 1 RLS role, 1 report page, 2 visuals, 1 bookmark)
+- [x] Synthetic fixture PBIP project for tests (2 tables with sample data,
+      1 relationship, cross-table measures, 1 RLS role, 1 report page,
+      2 visuals, 1 bookmark) — validated against the real published PBIR
+      JSON schemas (see below)
 - [x] PySide6 GUI shell: report/target/mapping pickers wired to real
       validation, results panel, log panel
 - [ ] Test fixtures: a **target** semantic model (renamed tables/columns) and
       a **golden** expected-migrated-report to diff the engine's output
       against
+- [ ] Consider vendoring the PBIR JSON schemas (from
+      github.com/microsoft/json-schemas) as a dev-only regression test, so a
+      future fixture edit that breaks Desktop-openability fails CI instead
+      of only surfacing when someone opens it manually
 
 ## Migration engine
 

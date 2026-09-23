@@ -1,6 +1,8 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/bookmarks/2.0.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/bookmarksMetadata/1.0.0/schema.json",
   "items": [
-    "BookmarkWestRegion"
+    {
+      "name": "BookmarkWestRegion"
+    }
   ]
 }

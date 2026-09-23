@@ -24,9 +24,26 @@ table Customer
 		mode: import
 		source =
 				let
-					Source = Table.FromRows({}, {"CustomerID", "CustomerName", "Region"})
+					Source = Table.FromRows(
+							{
+								{1, "Contoso Retail", "West"},
+								{2, "Fabrikam Inc", "East"},
+								{3, "Northwind Traders", "West"},
+								{4, "Tailspin Toys", "Central"},
+								{5, "Adventure Works", "East"}
+							},
+							{"CustomerID", "CustomerName", "Region"}
+						),
+					ChangedType = Table.TransformColumnTypes(
+							Source,
+							{
+								{"CustomerID", Int64.Type},
+								{"CustomerName", type text},
+								{"Region", type text}
+							}
+						)
 				in
-					Source
+					ChangedType
 
 	annotation PBI_ResultType = Table
 

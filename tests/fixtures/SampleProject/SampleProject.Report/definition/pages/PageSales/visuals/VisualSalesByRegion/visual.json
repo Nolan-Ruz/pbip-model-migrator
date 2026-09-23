@@ -1,5 +1,5 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
   "name": "VisualSalesByRegion",
   "position": {
     "x": 620,
@@ -49,23 +49,24 @@
           ]
         }
       }
-    },
-    "filterConfig": {
-      "filters": [
-        {
-          "field": {
-            "Column": {
-              "Expression": {
-                "SourceRef": {
-                  "Entity": "Customer"
-                }
-              },
-              "Property": "Region"
-            }
-          },
-          "type": "Categorical"
-        }
-      ]
     }
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "45B2A2C1E3F94D6C9A0B1C2D3E4F5A6B",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Customer"
+              }
+            },
+            "Property": "Region"
+          }
+        },
+        "type": "Categorical"
+      }
+    ]
   }
 }

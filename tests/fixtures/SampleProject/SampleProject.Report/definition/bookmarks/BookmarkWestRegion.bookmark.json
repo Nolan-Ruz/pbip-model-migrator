@@ -1,15 +1,18 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/bookmark/2.0.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/bookmark/2.1.0/schema.json",
   "name": "BookmarkWestRegion",
   "displayName": "West Region",
   "explorationState": {
+    "version": "1.0",
     "activeSection": "PageSales",
     "sections": {
       "PageSales": {
         "filters": {
           "byExpr": [
             {
-              "field": {
+              "name": "75C3B3D2F4A05E7D0B1C2D3E4F5A6B7C",
+              "type": "Categorical",
+              "expression": {
                 "Column": {
                   "Expression": {
                     "SourceRef": {
@@ -18,38 +21,6 @@
                   },
                   "Property": "Region"
                 }
-              },
-              "type": "Categorical",
-              "filter": {
-                "Where": [
-                  {
-                    "Condition": {
-                      "In": {
-                        "Expressions": [
-                          {
-                            "Column": {
-                              "Expression": {
-                                "SourceRef": {
-                                  "Entity": "Customer"
-                                }
-                              },
-                              "Property": "Region"
-                            }
-                          }
-                        ],
-                        "Values": [
-                          [
-                            {
-                              "Literal": {
-                                "Value": "'West'"
-                              }
-                            }
-                          ]
-                        ]
-                      }
-                    }
-                  }
-                ]
               }
             }
           ]
