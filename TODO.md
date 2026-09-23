@@ -39,10 +39,11 @@ they land so progress is easy to see at a glance.
       reparse/reserialize)
 - [ ] **Rebind the report**: update `definition.pbir`'s `datasetReference`
       to point at the target semantic model
-- [ ] **Target model validation**: parse just enough of the target model's
+- [x] **Target model validation**: parse just enough of the target model's
       TMDL to list its tables/columns/measures/hierarchies, then classify
       every reference as resolved / unmapped / mapped-but-missing
-- [ ] Lightweight TMDL name parser that handles quoted names
+      (`core/tmdl_reader.py`, `core/validation.py`)
+- [x] Lightweight TMDL name parser that handles quoted names
       (`'Sales Order'`), indentation nesting, and multi-line expressions
       without misreading their contents as declarations
 - [ ] Dry-run by default (prints a change/validation summary, writes
@@ -61,9 +62,12 @@ they land so progress is easy to see at a glance.
 
 ## GUI
 
-- [ ] Wire "Run dry run" to the real engine (currently echoes inputs only)
-- [ ] Wire "Apply migration" (currently a disabled placeholder)
-- [ ] Show discovered reference counts / resolved-unmapped-missing results
+- [x] Wire "Run dry run" to the real engine (discovery + target-model
+      validation; shows real resolved/unmapped/missing counts and logs each
+      issue)
+- [ ] Wire "Apply migration" (currently a disabled placeholder — blocked on
+      reference rewriting, which isn't built yet)
+- [x] Show discovered reference counts / resolved-unmapped-missing results
       in the results panel instead of zeros
 - [ ] Surface `migration_report.json`/`.md` as downloadable/openable output
 - [ ] Basic progress/busy state while a run is in flight
@@ -72,7 +76,8 @@ they land so progress is easy to see at a glance.
 
 - [x] Unit tests: mapping precedence, format validation, project I/O
 - [x] Unit tests: reference discovery
-- [ ] Unit tests: the TMDL name parser, diff minimality
+- [x] Unit tests: the TMDL name parser, reference classification
+- [ ] Unit tests: diff minimality (once reference rewriting exists)
 - [ ] End-to-end test: run the engine on the fixture and compare output to
       the golden migrated report
 - [ ] A run with one mapping row deliberately removed exits `1` and names

@@ -29,6 +29,9 @@ from pbip_model_migrator.core.project_io import (
     validate_report_dir,
     validate_semantic_model_dir,
 )
+from pbip_model_migrator.core.reference_discovery import discover_references_in_report
+from pbip_model_migrator.core.tmdl_reader import read_target_model
+from pbip_model_migrator.core.validation import ReferenceStatus, classify_references
 from pbip_model_migrator.gui.theme import STYLE_SHEET
 from pbip_model_migrator.gui.widgets import PathPickerRow, StatCard, StepCard
 
@@ -43,6 +46,7 @@ class MainWindow(QMainWindow):
         self.setMinimumWidth(760)
 
         self.mapping = None
+        self.last_results = None
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -222,13 +226,36 @@ class MainWindow(QMainWindow):
         self._log(f"Report: {self.report_dir}")
         self._log(f"Target model: {self.target_model_dir}")
         self._log(f"Mapping rows: {len(self.mapping.rows)}")
-        self._log(
-            "Reference discovery/validation engine is not implemented yet - "
-            "this is a UI preview of the dry-run flow."
-        )
-        self.resolved_stat.set_value(0, "neutral")
-        self.unmapped_stat.set_value(0, "neutral")
-        self.missing_stat.set_value(0, "neutral")
+
+        try:
+            references = discover_references_in_report(self.report_dir)
+            target_model = read_target_model(self.target_model_dir)
+        except Exception as exc:  # noqa: BLE001 - surface any failure to the log, not a crash
+            self._log(f"Dry run failed: {exc}")
+            return
+
+        self.last_results = classify_references(references, self.mapping, target_model)
+
+        resolved = [r for r in self.last_results if r.status == ReferenceStatus.RESOLVED]
+        unmapped = [r for r in self.last_results if r.status == ReferenceStatus.UNMAPPED]
+        missing = [r for r in self.last_results if r.status == ReferenceStatus.MAPPED_BUT_MISSING]
+
+        self.resolved_stat.set_value(len(resolved), "success" if resolved else "neutral")
+        self.unmapped_stat.set_value(len(unmapped), "warning" if unmapped else "neutral")
+        self.missing_stat.set_value(len(missing), "danger" if missing else "neutral")
+
+        self._log(f"{len(references)} field reference(s) found in the report.")
+        self._log_issues("UNMAPPED", unmapped)
+        self._log_issues("MAPPED BUT MISSING", missing)
+        self._log("Dry run complete. (No files written - dry run only.)")
+
+    def _log_issues(self, label: str, results, limit: int = 25):
+        for result in results[:limit]:
+            ref = result.reference
+            arrow = f" -> {result.resolved_table}.{result.resolved_field}" if label == "MAPPED BUT MISSING" else ""
+            self._log(f"  [{label}] {ref.file}: {ref.table}.{ref.field}{arrow}")
+        if len(results) > limit:
+            self._log(f"  ... and {len(results) - limit} more {label.lower()}")
 
     # -- results panel ------------------------------------------------------
 
