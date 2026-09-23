@@ -20,12 +20,12 @@ they land so progress is easy to see at a glance.
 
 ## Migration engine
 
-- [ ] **Reference discovery**: walk every JSON file under the report's
+- [x] **Reference discovery**: walk every JSON file under the report's
       `definition/` folder and find every field reference *structurally*
       (any object with `SourceRef -> Entity` + `Property`) — visuals/query
       state, visual/page/report filters, sorts, conditional formatting,
       bookmarks, report-level measures, and the `queryRef`/`nativeQueryRef`
-      display strings
+      display strings (`core/reference_discovery.py`)
 - [ ] **Reference rewriting**: apply the mapping to every discovered
       reference, rewriting both the structured reference and any display
       string that encodes it, while keeping the rest of each file
@@ -65,8 +65,8 @@ they land so progress is easy to see at a glance.
 ## Testing & CI
 
 - [x] Unit tests: mapping precedence, format validation, project I/O
-- [ ] Unit tests: reference discovery, the TMDL name parser, diff
-      minimality
+- [x] Unit tests: reference discovery
+- [ ] Unit tests: the TMDL name parser, diff minimality
 - [ ] End-to-end test: run the engine on the fixture and compare output to
       the golden migrated report
 - [ ] A run with one mapping row deliberately removed exits `1` and names
