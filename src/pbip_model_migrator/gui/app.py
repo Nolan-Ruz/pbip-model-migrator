@@ -240,20 +240,42 @@ class MainWindow(QMainWindow):
         unmapped = [r for r in self.last_results if r.status == ReferenceStatus.UNMAPPED]
         missing = [r for r in self.last_results if r.status == ReferenceStatus.MAPPED_BUT_MISSING]
 
+        changing = [
+            r for r in resolved
+            if (r.reference.table, r.reference.field) != (r.resolved_table, r.resolved_field)
+        ]
+        unchanged = [r for r in resolved if r not in changing]
+
         self.resolved_stat.set_value(len(resolved), "success" if resolved else "neutral")
         self.unmapped_stat.set_value(len(unmapped), "warning" if unmapped else "neutral")
         self.missing_stat.set_value(len(missing), "danger" if missing else "neutral")
 
         self._log(f"{len(references)} field reference(s) found in the report.")
+        self._log(
+            f"{len(changing)} will change, {len(unchanged)} already match the "
+            f"target (no change), {len(unmapped)} unmapped, {len(missing)} "
+            "mapped but missing from the target model."
+        )
+        self._log_changes("CHANGE", changing)
         self._log_issues("UNMAPPED", unmapped)
         self._log_issues("MAPPED BUT MISSING", missing)
         self._log("Dry run complete. (No files written - dry run only.)")
+
+    def _log_changes(self, label: str, results, limit: int = 50):
+        for result in results[:limit]:
+            ref = result.reference
+            self._log(
+                f"  [{label}] {ref.file}  ({ref.kind}): "
+                f"{ref.table}.{ref.field} -> {result.resolved_table}.{result.resolved_field}"
+            )
+        if len(results) > limit:
+            self._log(f"  ... and {len(results) - limit} more changes")
 
     def _log_issues(self, label: str, results, limit: int = 25):
         for result in results[:limit]:
             ref = result.reference
             arrow = f" -> {result.resolved_table}.{result.resolved_field}" if label == "MAPPED BUT MISSING" else ""
-            self._log(f"  [{label}] {ref.file}: {ref.table}.{ref.field}{arrow}")
+            self._log(f"  [{label}] {ref.file}  ({ref.kind}): {ref.table}.{ref.field}{arrow}")
         if len(results) > limit:
             self._log(f"  ... and {len(results) - limit} more {label.lower()}")
 
