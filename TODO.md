@@ -5,9 +5,12 @@ they land so progress is easy to see at a glance.
 
 ## Foundations
 
-- [x] Locate/copy a PBIP project (`core/project_io.py`)
 - [x] Detect current PBIR vs. legacy PBIR-Legacy, and current TMDL vs. legacy
       TMSL (`model.bim`); hard-stop with a clear message on legacy formats
+      (`core/project_io.py` — trimmed down to just this; the original
+      whole-.pbip-project loader/copier was scaffolding for an earlier
+      design where the tool mutated a project's own model in place, and
+      was deleted once the report/target-model-are-separate shape landed)
 - [x] CSV mapping file loader with `table`/`column`/`measure` rows and
       field-row-overrides-table-row precedence (`core/mapping.py`)
 - [x] Synthetic fixture PBIP project for tests (2 tables with sample data,
@@ -49,6 +52,9 @@ they land so progress is easy to see at a glance.
 - [ ] Dry-run by default (prints a change/validation summary, writes
       nothing); `--apply` performs writes; writes to a copy (`--out`) unless
       `--in-place` is passed
+- [ ] `copy_report_to(report_dir, output_dir)` in `core/project_io.py` for
+      the `--out` case: copies **only** the report folder (never the target
+      model — it's read-only, per "never modify the target semantic model")
 - [ ] `migration_report.json` (machine-readable) and `migration_report.md`
       (human-readable) with per-change file/location/old-value/new-value,
       plus every unresolved reference
@@ -67,6 +73,9 @@ they land so progress is easy to see at a glance.
       issue)
 - [ ] Wire "Apply migration" (currently a disabled placeholder — blocked on
       reference rewriting, which isn't built yet)
+- [ ] Add an output-folder picker for the `--out` case (only the
+      in-place checkbox exists today; there's no way to pick a copy
+      destination yet)
 - [x] Show discovered reference counts / resolved-unmapped-missing results
       in the results panel instead of zeros
 - [ ] Surface `migration_report.json`/`.md` as downloadable/openable output
