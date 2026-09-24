@@ -35,6 +35,14 @@ they land so progress is easy to see at a glance.
       state, visual/page/report filters, sorts, conditional formatting,
       bookmarks, report-level measures, and the `queryRef`/`nativeQueryRef`
       display strings (`core/reference_discovery.py`)
+- [ ] **Known gap in reference discovery**: `_as_field_reference` only
+      recognizes the standalone `SourceRef: {"Entity": "Table"}` shape.
+      The real schema also allows an *aliased* form,
+      `SourceRef: {"Source": "s"}`, resolved against a `"From": [{"Name":
+      "s", "Entity": "Table"}]` list elsewhere in the same query/filter —
+      used by filter conditions with a full `From`/`Where` structure. A
+      reference using that form is silently missed (no error, just absent
+      from the discovered list). Not currently exercised by the fixture.
 - [ ] **Reference rewriting**: apply the mapping to every discovered
       reference, rewriting both the structured reference and any display
       string that encodes it, while keeping the rest of each file
